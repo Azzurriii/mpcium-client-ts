@@ -198,6 +198,9 @@ async function signSolanaTransaction(walletId) {
   });
 }
 ```
+![alt text](./images/sign-solana.png)
+![alt text](./images/mpc_nodes.png)
+
 
 [Full example: sign-solana.ts](./examples/sign-solana.ts)
 
