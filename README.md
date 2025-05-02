@@ -2,6 +2,14 @@
 
 A TypeScript client for interacting with Mpcium Multi-Party Computation (MPC) service to generate and manage wallets and sign transactions across multiple blockchains.
 
+### Client sign
+
+![alt text](./images/sign-solana.png)
+
+### MPCIUM nodes coordinate to sign transaction
+
+![alt text](./images/mpc-nodes.png)
+
 ## Prerequisites
 
 Important: Before using this TypeScript client, you need to set up the Mpcium MPC nodes. The nodes provide the underlying MPC infrastructure that this client connects to.
@@ -198,9 +206,6 @@ async function signSolanaTransaction(walletId) {
   });
 }
 ```
-![alt text](./images/sign-solana.png)
-![alt text](./images/mpc_nodes.png)
-
 
 [Full example: sign-solana.ts](./examples/sign-solana.ts)
 
