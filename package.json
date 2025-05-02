@@ -1,0 +1,17 @@
+{
+  "devDependencies": {
+    "@solana/web3.js": "^1.98.2",
+    "@types/node": "^22.15.3",
+    "bs58": "^6.0.0",
+    "bunchee": "^6.5.1",
+    "ethers": "^6.13.7",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "@noble/ed25519": "^2.2.3",
+    "age-encryption": "^0.2.3",
+    "nats": "^2.29.3",
+    "uuid": "^11.1.0"
+  }
+}
