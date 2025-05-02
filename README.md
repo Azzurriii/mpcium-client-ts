@@ -5,7 +5,7 @@ A TypeScript client for interacting with Mpcium Multi-Party Computation (MPC) se
 ## Prerequisites
 
 Important: Before using this TypeScript client, you need to set up the Mpcium MPC nodes. The nodes provide the underlying MPC infrastructure that this client connects to.
-Please follow the installation and setup instructions at [mpcium](github.com/fystack/mpcium) to deploy the required MPC nodes. Typically, you'll need to run multiple nodes (e.g., 3 nodes in a 2-of-3 threshold setup) before using this client.
+Please follow the installation and setup instructions at [mpcium](https://github.com/fystack/mpcium) to deploy the required MPC nodes. Typically, you'll need to run multiple nodes (e.g., 3 nodes in a 2-of-3 threshold setup) before using this client.
 
 ```sh
 # Example of starting MPC nodes (after installing from the repository)
@@ -29,13 +29,15 @@ Mpcium is a service that provides secure key management and transaction signing 
 
 ## Installation
 
-```
+```bash
 npm install @fystack/mpcium-ts
 ```
 
 ## Creating a client
 
-```
+- User need to generate `event_initiator.key` through [mpcium-cli](https://github.com/fystack/mpcium/blob/master/INSTALLATION.md) before using this client
+
+```ts
 import { connect } from "nats";
 import { MpciumClient } from "@fystack/mpcium-ts";
 
@@ -55,7 +57,7 @@ async function setupClient() {
 
 ### Encrypted client (Recommended for production usage)
 
-```
+```ts
 const mpcClient = await MpciumClient.create({
   nc: nc,
   keyPath: "./event_initiator.key.age",
