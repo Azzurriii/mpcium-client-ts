@@ -8,6 +8,9 @@ import {
   LAMPORTS_PER_SOL,
 } from "@solana/web3.js";
 import { SigningResultType } from "../src/types";
+import * as fs from "fs";
+import * as path from "path";
+import base58 from "bs58";
 
 // The wallet ID should be provided via command line argument
 const walletId = process.argv[2];
@@ -23,6 +26,40 @@ const DESTINATION_WALLET = new PublicKey(
 
 // Amount to send in SOL
 const AMOUNT_TO_SEND = 0.01; // 0.01 SOL
+
+// Function to load wallet from wallets.json
+function loadWallet(walletId: string) {
+  const walletsPath = path.resolve("./wallets.json");
+  try {
+    if (fs.existsSync(walletsPath)) {
+      const wallets = JSON.parse(fs.readFileSync(walletsPath, "utf8"));
+      if (wallets[walletId]) {
+        return wallets[walletId];
+      }
+      throw new Error(`Wallet with ID ${walletId} not found in wallets.json`);
+    } else {
+      throw new Error("wallets.json file not found");
+    }
+  } catch (error) {
+    console.error(`Failed to load wallet: ${error.message}`);
+    process.exit(1);
+  }
+}
+
+// Helper function to get a wallet's Solana address
+async function getSolanaAddressForWallet(walletId: string): Promise<string> {
+  // Load wallet from wallets.json
+  const wallet = loadWallet(walletId);
+  
+  if (wallet && wallet.eddsa_pub_key) {
+    // Convert base64 public key to Solana address (which is the base58 encoding of the public key)
+    const pubKeyBuffer = Buffer.from(wallet.eddsa_pub_key, "base64");
+    const solanaAddress = base58.encode(pubKeyBuffer);
+    return solanaAddress;
+  }
+
+  throw new Error(`Wallet with ID ${walletId} has no EdDSA public key`);
+}
 
 async function main() {
   console.log(`Using wallet ID: ${walletId}`);
@@ -51,21 +88,17 @@ async function main() {
     );
     console.log("Connected to Solana devnet");
 
-    // Get the public key for the wallet
-    // For simplicity, let's assume we're getting it from the blockchain or some other service
-    // In a real application, you would store this when the wallet is created
-    const publicKeyBase64 = await getPublicKeyForWallet(walletId); // You'll need to implement this
-    const publicKeyBytes = Buffer.from(publicKeyBase64, "base64");
-    const fromPublicKey = new PublicKey(publicKeyBytes);
+    // Get the wallet's address
+    const senderAddress = await getSolanaAddressForWallet(walletId);
+    console.log(`Sender Solana address: ${senderAddress}`);
 
-    console.log(`Sender account: ${fromPublicKey.toBase58()}`);
     console.log(`Destination account: ${DESTINATION_WALLET.toBase58()}`);
     console.log(`Amount to send: ${AMOUNT_TO_SEND} SOL`);
 
     // Create a Solana transaction to send SOL
     const transaction = new Transaction().add(
       SystemProgram.transfer({
-        fromPubkey: fromPublicKey,
+        fromPubkey: new PublicKey(senderAddress),
         toPubkey: DESTINATION_WALLET,
         lamports: LAMPORTS_PER_SOL * AMOUNT_TO_SEND,
       })
@@ -74,7 +107,7 @@ async function main() {
     // Get the latest blockhash
     const { blockhash } = await connection.getLatestBlockhash();
     transaction.recentBlockhash = blockhash;
-    transaction.feePayer = fromPublicKey;
+    transaction.feePayer = new PublicKey(senderAddress);
 
     // Serialize the transaction to send it for signing
     const serializedTx = transaction.serializeMessage();
@@ -94,10 +127,10 @@ async function main() {
     });
 
     // Process a successful signature
-    function processSuccessfulSignature(signatureData: Uint8Array) {
+    function processSuccessfulSignature(signatureData: string) {
       try {
-        const signature = Buffer.from(signatureData);
-        transaction.addSignature(fromPublicKey, signature);
+        const signature = Buffer.from(signatureData, "base64");
+        transaction.addSignature(new PublicKey(senderAddress), signature);
         if (verifyTransactionSignature()) {
           broadcastTransaction();
         }
@@ -165,33 +198,6 @@ async function main() {
     await nc.drain();
     process.exit(1);
   }
-}
-
-// Helper function to get a wallet's public key
-// In a real application, you would store this when the wallet is created
-// or fetch it from your backend service
-async function getPublicKeyForWallet(walletId: string): Promise<string> {
-  // For this example, we'll use a hardcoded wallet
-  // In a real application, you would fetch this from a database or API
-  const exampleWallet = {
-    wallet_id: "0e2ac8fb-83d1-4086-a5e6-3de7f6fe2f0a",
-    ecdsa_pub_key:
-      "2o3m1zdeMxy84m69JNJfgYcZHl/E7cPLchxlCwfs/ZEIEvo6EP9KKWdCkG9GeJWL+BUJbs90+8Zh7bZ1VXDeDA==",
-    eddsa_pub_key: "nUA9r663eOYvKdsBhJLWAqIR1+fg+JMbGbNwiNj+69g=",
-  };
-
-  // Check if the provided walletId matches our example wallet
-  if (walletId === exampleWallet.wallet_id) {
-    return exampleWallet.eddsa_pub_key;
-  }
-
-  // If using for testing with a different wallet ID, you can just return the key
-  // Uncomment the line below to always return the example eddsa_pub_key
-  // return exampleWallet.eddsa_pub_key;
-
-  throw new Error(
-    `Wallet ID ${walletId} not found. For testing, use wallet ID: ${exampleWallet.wallet_id}`
-  );
 }
 
 // Run the example

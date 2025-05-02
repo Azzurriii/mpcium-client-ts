@@ -2,6 +2,8 @@ import { connect } from "nats";
 import { KeygenSuccessEvent, MpciumClient } from "../src";
 import { computeAddress, hexlify } from "ethers";
 import base58 from "bs58";
+import * as fs from "fs";
+import * as path from "path";
 
 async function main() {
   // First, establish NATS connection separately
@@ -44,6 +46,26 @@ async function main() {
 
         console.log(`Ethereum wallet address: ${ethAddress}`);
       }
+      
+      // Save the event to wallets.json with wallet_id as the key
+      const walletsPath = path.resolve("./wallets.json");
+      let wallets: Record<string, KeygenSuccessEvent> = {};
+      
+      // Read existing wallets file if it exists
+      try {
+        if (fs.existsSync(walletsPath)) {
+          wallets = JSON.parse(fs.readFileSync(walletsPath, "utf8"));
+        }
+      } catch (error) {
+        console.warn(`Could not read wallets file: ${error.message}`);
+      }
+      
+      // Add the new wallet
+      wallets[event.wallet_id] = event;
+      
+      // Write back to file
+      fs.writeFileSync(walletsPath, JSON.stringify(wallets, null, 2));
+      console.log(`Wallet saved to wallets.json with ID: ${event.wallet_id}`);
     });
 
     // Create a new wallet

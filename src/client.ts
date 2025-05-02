@@ -1,4 +1,11 @@
-import { NatsConnection, JSONCodec, Subscription } from "nats";
+import {
+  NatsConnection,
+  JSONCodec,
+  Subscription,
+  RetentionPolicy,
+  AckPolicy,
+  NatsError,
+} from "nats";
 import { v4 as uuidv4 } from "uuid";
 import {
   GenerateKeyMessage,
@@ -17,7 +24,7 @@ import {
 const jc = JSONCodec();
 
 // NATS topics
-const TOPICS = {
+const SUBJECTS = {
   GENERATE_KEY: "mpc:generate",
   SIGN_TX: "mpc:sign",
   KEYGEN_SUCCESS: "mpc.mpc_keygen_success.*",
@@ -136,7 +143,7 @@ export class MpciumClient {
     msg.signature = signatureBuffer.toString("base64");
 
     // Send the request
-    nc.publish(TOPICS.GENERATE_KEY, jc.encode(msg));
+    nc.publish(SUBJECTS.GENERATE_KEY, jc.encode(msg));
     console.log(`CreateWallet request sent for wallet: ${id}`);
 
     return id;
@@ -171,7 +178,7 @@ export class MpciumClient {
     msg.signature = signatureBuffer.toString("base64");
 
     // Send the request
-    nc.publish(TOPICS.SIGN_TX, jc.encode(msg));
+    nc.publish(SUBJECTS.SIGN_TX, jc.encode(msg));
     console.log(`SignTransaction request sent for txID: ${txId}`);
 
     return txId;
@@ -181,7 +188,7 @@ export class MpciumClient {
   onWalletCreationResult(callback: (event: KeygenSuccessEvent) => void): void {
     const { nc } = this.options;
 
-    const sub = nc.subscribe(TOPICS.KEYGEN_SUCCESS);
+    const sub = nc.subscribe(SUBJECTS.KEYGEN_SUCCESS);
     (async () => {
       for await (const msg of sub) {
         try {
@@ -199,84 +206,67 @@ export class MpciumClient {
 
   onSignResult(callback: (event: SigningResultEvent) => void): void {
     const { nc } = this.options;
-    
-    // Create a JetStream manager
-    const js = nc.jetstream();
-    
-    // Create a JetStream consumer
-    const consumerName = `sign-result-consumer-${uuidv4().substring(0, 8)}`;
-    
-    // First, ensure the stream exists
+    const consumerName = `signing_result`;
+
     (async () => {
+      const js = nc.jetstream(); // for pub/sub
+      const jsm = await nc.jetstreamManager(); // for admin
+
+      // 1) Ensure the MAIN stream exists (by name)
       try {
-        // Create or get the stream
-        await js.streams.info("MPC_SIGNING_RESULTS").catch(async () => {
-          // Stream doesn't exist, create it
-          await js.streams.add({
-            name: "MPC_SIGNING_RESULTS",
-            subjects: ["mpc.signing_result.*"],
-            retention: "interest",
-            max_age: 60 * 60 * 1000 * 1000 * 1000, // 1 hour in nanoseconds
+        await jsm.streams.info("mpc");
+      } catch {
+        // 2) Try to add it—but ignore the "subject-overlap" error
+        try {
+          await jsm.streams.add({
+            name: "mpc",
+            subjects: [SUBJECTS.SIGNING_RESULT],
+            retention: RetentionPolicy.Workqueue,
+            max_bytes: 100 * 1024 * 1024,
           });
-        });
-        
-        // Create a consumer for the stream
-        await js.consumers.add("MPC_SIGNING_RESULTS", {
-          durable_name: consumerName,
-          ack_policy: "explicit",
-          deliver_subject: `${consumerName}.delivery`,
-          deliver_group: "mpcium-clients",
-          filter_subject: TOPICS.SIGNING_RESULT,
-        });
-        
-        // Subscribe to the consumer's delivery subject
-        const sub = nc.subscribe(`${consumerName}.delivery`);
-        
-        (async () => {
-          for await (const msg of sub) {
-            try {
-              const jsmsg = js.messages.get(msg);
-              console.log("Received signing result:", msg.headers);
-              
-              const event = jc.decode(msg.data) as SigningResultEvent;
-              
-              // Convert base64 signature to Buffer if needed
-              if (typeof event.signature === "string") {
-                event.signature = Buffer.from(event.signature, "base64");
-              }
-              
-              try {
-                callback(event);
-                // Acknowledge successful processing
-                await jsmsg.ack();
-                console.log("Successfully processed and acknowledged message");
-              } catch (callbackError) {
-                console.error("Error in callback handler:", callbackError);
-                // Negative acknowledgment - will be redelivered
-                await jsmsg.nak();
-              }
-            } catch (error) {
-              console.error("Error processing signing result:", error);
-              // If we can't decode the message, terminate it
-              try {
-                const jsmsg = js.messages.get(msg);
-                await jsmsg.term();
-                console.log("Terminated message due to processing error");
-              } catch (e) {
-                console.error("Failed to terminate message:", e);
-              }
-            }
+        } catch (err) {
+          console.error("Error creating stream adding:", err);
+          // NatsError.err_code 10065 → "subjects overlap with an existing stream"
+          if (err instanceof NatsError && err.api_error?.err_code === 10065) {
+            console.warn(
+              "Stream subjects overlap; proceeding without re-creating stream"
+            );
+          } else {
+            throw err; // re-throw anything else
           }
-        })().catch(err => {
-          console.error("Error in subscription processing:", err);
-        });
-        
-        this.subscriptions.push(sub);
-        console.log("Subscribed to signing results with JetStream");
-        
-      } catch (err) {
-        console.error("Error setting up JetStream consumer:", err);
+        }
       }
-    })();
+
+      try {
+        await jsm.consumers.info("mpc", consumerName);
+        // already there—skip jsm.consumers.add()
+      } catch {
+        // 2) Create durable consumer
+        await jsm.consumers.add("mpc", {
+          durable_name: consumerName,
+          ack_policy: AckPolicy.Explicit,
+          filter_subject: SUBJECTS.SIGNING_RESULT,
+          max_deliver: 3,
+        });
+      }
+
+      // 4) now fetch that consumer and **consume()**
+      const consumer = await js.consumers.get("mpc", consumerName);
+      console.log("Subscribed to signing results (consume mode)");
+
+      const sub = await consumer.consume(); // ← await here
+      for await (const m of sub) {
+        try {
+          const event = jc.decode(m.data) as SigningResultEvent;
+          callback(event);
+          m.ack();
+        } catch (err) {
+          console.error("Error processing message:", err);
+          m.term();
+        }
+      }
+    })().catch((err) => {
+      console.error("Error setting up JetStream consumer:", err);
+    });
   }
 }

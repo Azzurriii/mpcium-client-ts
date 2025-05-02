@@ -33,7 +33,10 @@ export interface SigningResultEvent {
   wallet_id: string;
   tx_id: string;
   network_internal_code: string;
-  signature: Uint8Array;
+  r: string;
+  s: string;
+  signature_recovery: string;
+  signature: string;
   result_type: SigningResultType;
   error_message?: string;
 }
