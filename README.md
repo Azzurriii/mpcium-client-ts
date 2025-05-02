@@ -206,15 +206,43 @@ async function signSolanaTransaction(walletId) {
   });
 }
 ```
-
 [Full example: sign-solana.ts](./examples/sign-solana.ts)
 
-Install `ts-node` to run
+## Tests
+
+### 1. Generate an MPC wallet
 
 ```
-npx ts-node ./examples/sign-eth.ts wallet_id
+npx ts-node ./examples/generate-wallet.ts
 ```
 
-### Signing an EVM transaction
+```
+Connected to NATS at localhost:4222
+Subscribed to wallet creation results
+CreateWallet request sent for wallet: a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
+CreateWallet sent, awaiting result... walletID: a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
+Received wallet creation result: {
+  wallet_id: 'a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c',
+  ecdsa_pub_key: '1ftOqTd9z540F7J6bSLJJ8gqn85HlyQKetWB4mACDFBhaodgiNr9ILL5wZ95yWpaqQc77f02rQklUeDSZhLVVA==',
+  eddsa_pub_key: 'm0qUKZlxmzgYA9sRh1Q7cQJHT8jEdUQjbic8hQNHG2o='
+}
+Solana wallet address: BTC9kvDchPvu84iMzLbhYBg5bWma4QHDAFumpF41ErjT
+Ethereum wallet address: 0x309bdE4d218e44E4a391f4c43Bf6226156D3255b
+Wallet saved to wallets.json with ID: a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
 
-[Full example: sing-eth.ts](./examples/sign-eth.ts)
+```
+
+### 2. Transfer Solana to the wallet
+- Use Phantom to transfer SOL from devnet to the wallet
+### 
+
+### 3. Sign a Solana transaction
+```
+npx ts-node ./examples/sign-solana.ts a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
+```
+
+### 4. Sign an Ethereum transaction
+
+```
+npx ts-node ./examples/sign-eth.ts a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
+```
