@@ -2,6 +2,18 @@
 
 A TypeScript client for interacting with Mpcium Multi-Party Computation (MPC) service to generate and manage wallets and sign transactions across multiple blockchains.
 
+## Prerequisites
+
+Important: Before using this TypeScript client, you need to set up the Mpcium MPC nodes. The nodes provide the underlying MPC infrastructure that this client connects to.
+Please follow the installation and setup instructions at [mpcium](github.com/fystack/mpcium) to deploy the required MPC nodes. Typically, you'll need to run multiple nodes (e.g., 3 nodes in a 2-of-3 threshold setup) before using this client.
+
+```sh
+# Example of starting MPC nodes (after installing from the repository)
+mpcium start -n node0
+mpcium start -n node1
+mpcium start -n node2
+```
+
 ## Overview
 
 Mpcium is a service that provides secure key management and transaction signing using Multi-Party Computation. This client library allows you to:
