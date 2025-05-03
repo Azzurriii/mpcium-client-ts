@@ -5,6 +5,7 @@ import {
   RetentionPolicy,
   AckPolicy,
   NatsError,
+  ConsumerMessages,
 } from "nats";
 import { v4 as uuidv4 } from "uuid";
 import {
@@ -40,7 +41,7 @@ export interface MpciumOptions {
 
 export class MpciumClient {
   private privateKey: Buffer;
-  private subscriptions: Subscription[] = [];
+  private subscriptions: (Subscription | ConsumerMessages)[] = [];
 
   /**
    * Create a new MpciumClient instance
@@ -116,7 +117,12 @@ export class MpciumClient {
   async cleanup(): Promise<void> {
     // Unsubscribe from all subscriptions
     for (const sub of this.subscriptions) {
-      sub.unsubscribe();
+      if ("unsubscribe" in sub) {
+        sub.unsubscribe();
+      } else {
+        // Handle ConsumerMessages
+        sub.stop();
+      }
     }
     this.subscriptions = [];
     console.log("Cleaned up all subscriptions");
@@ -184,24 +190,75 @@ export class MpciumClient {
     return txId;
   }
 
-  // Update the callback handler methods to match the new field names
   onWalletCreationResult(callback: (event: KeygenSuccessEvent) => void): void {
     const { nc } = this.options;
+    const consumerName = `mpc_keygen_success`;
 
-    const sub = nc.subscribe(SUBJECTS.KEYGEN_SUCCESS);
     (async () => {
-      for await (const msg of sub) {
+      const js = nc.jetstream(); // for pub/sub
+      const jsm = await nc.jetstreamManager(); // for admin
+
+      // 1) Ensure the MAIN stream exists (by name)
+      try {
+        await jsm.streams.info("mpc");
+      } catch {
+        // 2) Try to add it—but ignore the "subject-overlap" error
         try {
-          const event = jc.decode(msg.data) as KeygenSuccessEvent;
-          callback(event);
-        } catch (error) {
-          console.error("Error processing wallet creation result:", error);
+          await jsm.streams.add({
+            name: "mpc",
+            subjects: [SUBJECTS.KEYGEN_SUCCESS],
+            retention: RetentionPolicy.Workqueue,
+            max_bytes: 100 * 1024 * 1024,
+          });
+        } catch (err) {
+          console.error("Error creating stream adding:", err);
+          // NatsError.err_code 10065 → "subjects overlap with an existing stream"
+          if (err instanceof NatsError && err.api_error?.err_code === 10065) {
+            console.warn(
+              "Stream subjects overlap; proceeding without re-creating stream"
+            );
+          } else {
+            throw err; // re-throw anything else
+          }
         }
       }
-    })();
 
-    this.subscriptions.push(sub);
-    console.log("Subscribed to wallet creation results");
+      try {
+        await jsm.consumers.info("mpc", consumerName);
+        // already there—skip jsm.consumers.add()
+      } catch {
+        // 2) Create durable consumer
+        await jsm.consumers.add("mpc", {
+          durable_name: consumerName,
+          ack_policy: AckPolicy.Explicit,
+          filter_subject: SUBJECTS.KEYGEN_SUCCESS,
+          max_deliver: 3,
+        });
+      }
+
+      // 4) now fetch that consumer and **consume()**
+      const consumer = await js.consumers.get("mpc", consumerName);
+      console.log("Subscribed to wallet creation results (consume mode)");
+
+      const sub = await consumer.consume(); // ← await here
+      this.subscriptions.push(sub);
+
+      for await (const m of sub) {
+        try {
+          const event = jc.decode(m.data) as KeygenSuccessEvent;
+          callback(event);
+          m.ack();
+        } catch (err) {
+          console.error("Error processing wallet creation message:", err);
+          m.term();
+        }
+      }
+    })().catch((err) => {
+      console.error(
+        "Error setting up JetStream consumer for wallet creation:",
+        err
+      );
+    });
   }
 
   onSignResult(callback: (event: SigningResultEvent) => void): void {
@@ -255,6 +312,8 @@ export class MpciumClient {
       console.log("Subscribed to signing results (consume mode)");
 
       const sub = await consumer.consume(); // ← await here
+      this.subscriptions.push(sub);
+
       for await (const m of sub) {
         try {
           const event = jc.decode(m.data) as SigningResultEvent;
