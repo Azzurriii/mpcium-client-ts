@@ -1,6 +1,15 @@
+import { NatsConnection } from "nats";
+
 export enum KeyType {
   Secp256k1 = "secp256k1",
   Ed25519 = "ed25519",
+}
+
+export interface MpciumOptions {
+  nc: NatsConnection;
+  keyPath: string;
+  password?: string; // Optional password for encrypted keys
+  encrypted?: boolean; // Explicitly specify if key is encrypted
 }
 
 export interface GenerateKeyMessage {

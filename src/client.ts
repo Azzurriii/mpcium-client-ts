@@ -1,5 +1,4 @@
 import {
-  NatsConnection,
   JSONCodec,
   Subscription,
   RetentionPolicy,
@@ -21,6 +20,7 @@ import {
   signSignTxMessage,
   loadEncryptedPrivateKey,
 } from "./utils";
+import { MpciumOptions } from "./types";
 
 const jc = JSONCodec();
 
@@ -31,13 +31,6 @@ const SUBJECTS = {
   KEYGEN_SUCCESS: "mpc.mpc_keygen_success.*",
   SIGNING_RESULT: "mpc.signing_result.*",
 };
-
-export interface MpciumOptions {
-  nc: NatsConnection;
-  keyPath: string;
-  password?: string; // Optional password for encrypted keys
-  encrypted?: boolean; // Explicitly specify if key is encrypted
-}
 
 export class MpciumClient {
   private privateKey: Buffer;

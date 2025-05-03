@@ -1,8 +1,5 @@
 // Export the main client class and options
-export { MpciumClient, MpciumOptions } from "./client";
-
-// Export key type enum
-export { KeyType } from "./types";
+export { MpciumClient } from "./client";
 
 // Export message and event interfaces for developers who need to work with these directly
 export type {
@@ -10,6 +7,8 @@ export type {
   SignTxMessage,
   KeygenSuccessEvent,
   SigningResultEvent,
+  KeyType,
+  MpciumOptions,
 } from "./types";
 
 // Export utility functions for key handling
