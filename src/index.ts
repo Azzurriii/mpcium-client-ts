@@ -7,9 +7,10 @@ export type {
   SignTxMessage,
   KeygenSuccessEvent,
   SigningResultEvent,
-  KeyType,
   MpciumOptions,
 } from "./types";
+
+export { KeyType } from "./types";
 
 // Export utility functions for key handling
 export {
