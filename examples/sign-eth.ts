@@ -16,7 +16,7 @@ if (!walletId) {
 const DESTINATION_WALLET = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
 
 // Amount to send in ETH
-const AMOUNT_TO_SEND = "0.001"; // 0.001 ETH
+const AMOUNT_TO_SEND = "0.0001"; // 0.001 ETH
 
 // Function to load wallet from wallets.json
 function loadWallet(walletId: string) {
@@ -214,7 +214,7 @@ async function main() {
 async function getEthAddressForWallet(walletId: string): Promise<string> {
   // Load wallet from wallets.json
   const wallet = loadWallet(walletId);
-  
+
   if (wallet && wallet.ecdsa_pub_key) {
     // Convert base64 public key to Ethereum address
     const pubKeyBuffer = Buffer.from(wallet.ecdsa_pub_key, "base64");

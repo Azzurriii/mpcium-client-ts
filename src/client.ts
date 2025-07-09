@@ -28,8 +28,8 @@ const jc = JSONCodec();
 const SUBJECTS = {
   GENERATE_KEY: "mpc:generate",
   SIGN_TX: "mpc:sign",
-  KEYGEN_SUCCESS: "mpc.mpc_keygen_success.*",
-  SIGNING_RESULT: "mpc.signing_result.*",
+  KEYGEN_RESULT: "mpc.mpc_keygen_result.*",
+  SIGNING_RESULT: "mpc.mpc_signing_result.*",
 };
 
 export class MpciumClient {
@@ -185,7 +185,7 @@ export class MpciumClient {
 
   onWalletCreationResult(callback: (event: KeygenSuccessEvent) => void): void {
     const { nc } = this.options;
-    const consumerName = `mpc_keygen_success`;
+    const consumerName = `mpc_keygen_result`;
 
     (async () => {
       const js = nc.jetstream(); // for pub/sub
@@ -199,7 +199,7 @@ export class MpciumClient {
         try {
           await jsm.streams.add({
             name: "mpc",
-            subjects: [SUBJECTS.KEYGEN_SUCCESS],
+            subjects: [SUBJECTS.KEYGEN_RESULT],
             retention: RetentionPolicy.Workqueue,
             max_bytes: 100 * 1024 * 1024,
           });
@@ -224,7 +224,7 @@ export class MpciumClient {
         await jsm.consumers.add("mpc", {
           durable_name: consumerName,
           ack_policy: AckPolicy.Explicit,
-          filter_subject: SUBJECTS.KEYGEN_SUCCESS,
+          filter_subject: SUBJECTS.KEYGEN_RESULT,
           max_deliver: 3,
         });
       }
@@ -256,7 +256,7 @@ export class MpciumClient {
 
   onSignResult(callback: (event: SigningResultEvent) => void): void {
     const { nc } = this.options;
-    const consumerName = `signing_result`;
+    const consumerName = `mpc_signing_result`;
 
     (async () => {
       const js = nc.jetstream(); // for pub/sub

@@ -21,11 +21,11 @@ if (!walletId) {
 
 // Destination wallet to send SOL to
 const DESTINATION_WALLET = new PublicKey(
-  "4LKprD1XvTuBupHqWXoS42XsEBHp7qALo3giDBRCNhAV"
+  "EEHqKoN2GxEPakaZhqP4hR3ZK1TPdHPsk5mntwpXzEvd"
 );
 
 // Amount to send in SOL
-const AMOUNT_TO_SEND = 0.01; // 0.01 SOL
+const AMOUNT_TO_SEND = 0.001; // 0.01 SOL
 
 // Function to load wallet from wallets.json
 function loadWallet(walletId: string) {
@@ -50,7 +50,7 @@ function loadWallet(walletId: string) {
 async function getSolanaAddressForWallet(walletId: string): Promise<string> {
   // Load wallet from wallets.json
   const wallet = loadWallet(walletId);
-  
+
   if (wallet && wallet.eddsa_pub_key) {
     // Convert base64 public key to Solana address (which is the base58 encoding of the public key)
     const pubKeyBuffer = Buffer.from(wallet.eddsa_pub_key, "base64");
@@ -126,6 +126,26 @@ async function main() {
       }
     });
 
+    // Send the transaction for signing
+    const txId = await mpcClient.signTransaction({
+      walletId: walletId,
+      keyType: KeyType.Ed25519,
+      networkInternalCode: "solana:devnet",
+      tx: Buffer.from(serializedTx).toString("base64"), // Convert Uint8Array to base64 string
+    });
+
+    console.log(`Signing request sent with txID: ${txId}`);
+
+    // Wait for the result
+    await new Promise((resolve) => {
+      const checkInterval = setInterval(() => {
+        if (signatureReceived) {
+          clearInterval(checkInterval);
+          resolve(null);
+        }
+      }, 1000);
+    });
+
     // Process a successful signature
     function processSuccessfulSignature(signatureData: string) {
       try {
@@ -165,27 +185,6 @@ async function main() {
           console.error("Error broadcasting transaction:", err);
         });
     }
-
-    // Send the transaction for signing
-    const txId = await mpcClient.signTransaction({
-      walletId: walletId,
-      keyType: KeyType.Ed25519,
-      networkInternalCode: "solana:devnet",
-      tx: Buffer.from(serializedTx).toString("base64"), // Convert Uint8Array to base64 string
-    });
-
-    console.log(`Signing request sent with txID: ${txId}`);
-
-    // Wait for the result
-    await new Promise((resolve) => {
-      const checkInterval = setInterval(() => {
-        if (signatureReceived) {
-          clearInterval(checkInterval);
-          resolve(null);
-        }
-      }, 1000);
-    });
-
     // Keep the process running to allow time for transaction confirmation
     await new Promise((resolve) => setTimeout(resolve, 5000));
 

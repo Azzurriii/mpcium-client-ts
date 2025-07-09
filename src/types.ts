@@ -34,8 +34,8 @@ export interface KeygenSuccessEvent {
 
 export enum SigningResultType {
   Unknown = 0,
-  Success = 1,
-  Error = 2,
+  Success = "success",
+  Error = "error",
 }
 
 export interface SigningResultEvent {
