@@ -222,11 +222,11 @@ export class MpciumClient {
       // Try JetStream first
       await this.ensureStreamsExist();
       const js = nc.jetstream();
-      await js.publish("mpc.keygen_request", jc.encode(msg));
+      await js.publish(`mpc.keygen_request.${walletId}`, jc.encode(msg));
       console.log(`CreateWallet request sent via JetStream for wallet: ${id}`);
     } catch (err) {
       // Fall back to core NATS if JetStream is not available
-      console.warn("JetStream not available, falling back to core NATS");
+      console.warn("JetStream not available, falling back to core NATS", err);
       nc.publish("mpc.keygen_request", jc.encode(msg));
       console.log(`CreateWallet request sent via core NATS for wallet: ${id}`);
     }
