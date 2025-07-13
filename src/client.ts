@@ -338,7 +338,7 @@ export class MpciumClient {
           await jsm.streams.add({
             name: "mpc",
             subjects: [SUBJECTS.KEYGEN_RESULT],
-            retention: RetentionPolicy.Workqueue,
+            retention: RetentionPolicy.Interest,
             max_bytes: 100 * 1024 * 1024,
           });
         } catch (err) {
@@ -409,7 +409,7 @@ export class MpciumClient {
           await jsm.streams.add({
             name: "mpc",
             subjects: [SUBJECTS.SIGNING_RESULT],
-            retention: RetentionPolicy.Workqueue,
+            retention: RetentionPolicy.Interest,
             max_bytes: 100 * 1024 * 1024,
           });
         } catch (err) {
