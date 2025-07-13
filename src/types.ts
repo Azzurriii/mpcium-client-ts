@@ -49,3 +49,23 @@ export interface SigningResultEvent {
   result_type: SigningResultType;
   error_message?: string;
 }
+
+export interface ResharingMessage {
+  session_id: string;
+  node_ids: string[];
+  new_threshold: number;
+  key_type: KeyType;
+  wallet_id: string;
+  signature?: string;
+}
+
+export interface ResharingResultEvent {
+  result_type: "success" | "error";
+  wallet_id: string;
+  session_id?: string;
+  pub_key?: string;
+  new_threshold: number;
+  key_type: KeyType;
+  error_code?: string;
+  error_reason?: string;
+}

@@ -3,6 +3,7 @@ import { readFileSync } from "fs";
 import * as age from "age-encryption";
 import { GenerateKeyMessage, SignTxMessage } from "./types";
 import { createHash } from "crypto";
+import { ResharingMessage } from "./types";
 
 // Set up SHA-512 implementation for @noble/ed25519
 ed25519.etc.sha512Sync = (...messages) => {
@@ -192,4 +193,25 @@ export async function signSignTxMessage(
   } catch (error) {
     throw new Error(`Ed25519 signing error: ${error}`);
   }
+}
+
+/**
+ * Sign a resharing message
+ */
+export async function signResharingMessage(
+  msg: ResharingMessage,
+  privateKey: Buffer
+): Promise<Buffer> {
+  // Create message object with fields in the exact order as Go struct (excluding signature)
+  const msgWithoutSignature = {
+    session_id: msg.session_id,
+    node_ids: msg.node_ids,
+    new_threshold: msg.new_threshold,
+    key_type: msg.key_type,
+    wallet_id: msg.wallet_id,
+  };
+  
+  const messageBuffer = Buffer.from(JSON.stringify(msgWithoutSignature));
+  const privateKeyBytes = new Uint8Array(privateKey);
+  return Buffer.from(ed25519.sign(messageBuffer, privateKeyBytes));
 }

@@ -7,6 +7,7 @@ export type {
   SignTxMessage,
   KeygenSuccessEvent,
   SigningResultEvent,
+  ResharingResultEvent,
   MpciumOptions,
 } from "./types";
 
@@ -17,4 +18,5 @@ export {
   loadPrivateKey,
   signGenerateKeyMessage,
   signSignTxMessage,
+  signResharingMessage,
 } from "./utils";

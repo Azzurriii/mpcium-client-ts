@@ -206,7 +206,72 @@ async function signSolanaTransaction(walletId) {
   });
 }
 ```
+
 [Full example: sign-solana.ts](./examples/sign-solana.ts)
+
+### Resharing MPC Keys
+
+Resharing allows you to change the threshold and/or participants in an MPC wallet without exposing the private key. This is useful for:
+
+- Adding or removing participants from a wallet
+- Changing the threshold (e.g., from 2-of-3 to 3-of-5)
+- Key rotation for security purposes
+
+#### Resharing an Ethereum Wallet
+
+```ts
+import { connect } from "nats";
+import { MpciumClient, KeyType } from "@fystack/mpcium-ts";
+import fs from "fs";
+
+async function reshareEthereumWallet(walletId: string) {
+  const nc = await connect({ servers: "nats://localhost:4222" });
+  const mpcClient = await MpciumClient.create({
+    nc: nc,
+    keyPath: "./event_initiator.key",
+  });
+
+  // Listen for resharing results
+  mpcClient.onResharingResult((event) => {
+    console.log("Resharing result:", event);
+
+    if (event.result_type === "success") {
+      // Update wallet with new public key
+      const wallets = JSON.parse(fs.readFileSync("./wallets.json", "utf8"));
+      wallets[walletId].ecdsa_pub_key = event.pub_key;
+      wallets[walletId].reshared = true;
+      wallets[walletId].new_threshold = event.new_threshold;
+
+      fs.writeFileSync("./wallets.json", JSON.stringify(wallets, null, 2));
+      console.log("Wallet updated with new reshared key");
+    }
+  });
+
+  // Initiate resharing with new node configuration
+  const sessionId = await mpcClient.reshareKeys({
+    walletId: walletId,
+    nodeIds: ["node0", "node1", "node2", "node3"], // Add new node
+    newThreshold: 3, // Change from 2-of-3 to 3-of-4
+    keyType: KeyType.Secp256k1,
+  });
+
+  console.log(`Resharing initiated with session ID: ${sessionId}`);
+}
+```
+
+#### Resharing a Solana Wallet
+
+```ts
+// Similar to Ethereum but using Ed25519 keys
+const sessionId = await mpcClient.reshareKeys({
+  walletId: walletId,
+  nodeIds: ["node0", "node1", "node2"],
+  newThreshold: 2,
+  keyType: KeyType.Ed25519,
+});
+```
+
+[Full examples: reshare-eth.ts](./examples/reshare-eth.ts) | [reshare-solana.ts](./examples/reshare-solana.ts)
 
 ## Tests
 
@@ -233,10 +298,13 @@ Wallet saved to wallets.json with ID: a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
 ```
 
 ### 2. Transfer Solana to the wallet
+
 - Use Phantom to transfer SOL from devnet to the wallet
-### 
+
+###
 
 ### 3. Sign a Solana transaction
+
 ```
 npx ts-node ./examples/sign-solana.ts a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
 ```

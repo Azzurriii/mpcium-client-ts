@@ -1,6 +1,6 @@
 {
   "name": "@fystack/mpcium-ts",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "Mpcium client for typescript",
   "main": "dist/index.cjs",
   "types": "dist/types/index.d.ts",
