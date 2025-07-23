@@ -11,7 +11,7 @@ import {
   GenerateKeyMessage,
   SignTxMessage,
   ResharingMessage,
-  KeygenSuccessEvent,
+  KeygenResultEvent,
   SigningResultEvent,
   ResharingResultEvent,
   KeyType,
@@ -321,7 +321,7 @@ export class MpciumClient {
     return sessionId;
   }
 
-  onWalletCreationResult(callback: (event: KeygenSuccessEvent) => void): void {
+  onWalletCreationResult(callback: (event: KeygenResultEvent) => void): void {
     const { nc } = this.options;
     const consumerName = `mpc_keygen_result`;
 
@@ -376,7 +376,7 @@ export class MpciumClient {
 
       for await (const m of sub) {
         try {
-          const event = jc.decode(m.data) as KeygenSuccessEvent;
+          const event = jc.decode(m.data) as KeygenResultEvent;
           callback(event);
           m.ack();
         } catch (err) {
