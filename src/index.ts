@@ -5,7 +5,7 @@ export { MpciumClient } from "./client";
 export type {
   GenerateKeyMessage,
   SignTxMessage,
-  KeygenSuccessEvent,
+  KeygenResultEvent,
   SigningResultEvent,
   ResharingResultEvent,
   MpciumOptions,

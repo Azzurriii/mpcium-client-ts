@@ -26,10 +26,13 @@ export interface SignTxMessage {
   signature?: string;
 }
 
-export interface KeygenSuccessEvent {
+export interface KeygenResultEvent {
   wallet_id: string;
   ecdsa_pub_key?: string;
   eddsa_pub_key?: string;
+  result_type?: string;
+  error_reason?:string;
+  error_code?:string;
 }
 
 export enum SigningResultType {

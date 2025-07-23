@@ -1,5 +1,5 @@
 import { connect } from "nats";
-import { KeygenSuccessEvent, MpciumClient } from "../src";
+import { KeygenResultEvent, MpciumClient } from "../src";
 import { computeAddress, hexlify } from "ethers";
 import base58 from "bs58";
 import * as fs from "fs";
@@ -26,7 +26,7 @@ async function main() {
   });
 
   const walletsPath = path.resolve("./wallets.json");
-  let wallets: Record<string, KeygenSuccessEvent> = {};
+  let wallets: Record<string, KeygenResultEvent> = {};
   if (fs.existsSync(walletsPath)) {
     try {
       wallets = JSON.parse(fs.readFileSync(walletsPath, "utf8"));
@@ -37,10 +37,13 @@ async function main() {
 
   let remaining = walletCount;
 
-  mpcClient.onWalletCreationResult((event: KeygenSuccessEvent) => {
+  mpcClient.onWalletCreationResult((event: KeygenResultEvent) => {
     const timestamp = new Date().toISOString();
     console.log(`${timestamp} Received wallet creation result:`, event);
-
+    if(event.result_type === 'error') {
+      console.log(`Wallet creation failed: ${event.error_reason}`);
+      return
+    }
     if (event.eddsa_pub_key) {
       const pubKeyBytes = Buffer.from(event.eddsa_pub_key, "base64");
       const solanaAddress = base58.encode(pubKeyBytes);
