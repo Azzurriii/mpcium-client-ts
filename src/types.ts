@@ -51,6 +51,7 @@ export interface SigningResultEvent {
   signature: string;
   result_type: SigningResultType;
   error_message?: string;
+  error_reason?: string;
 }
 
 export interface ResharingMessage {
