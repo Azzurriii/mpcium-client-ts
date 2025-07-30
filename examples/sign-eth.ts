@@ -107,7 +107,7 @@ async function main() {
       if (event.result_type === SigningResultType.Success) {
         processSuccessfulSignature(event);
       } else {
-        console.error(`Signing failed: ${event.error_message}`);
+        console.error(`Signing failed: ${event.error_reason}`);
       }
     });
 
