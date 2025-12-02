@@ -20,3 +20,24 @@ export {
   signSignTxMessage,
   signResharingMessage,
 } from "./utils";
+
+// Export Polkadot/Substrate utilities
+export {
+  buildSigningPayload,
+  buildNativeTransferPayload,
+  buildAssetTransferPayload,
+  submitSignedExtrinsic,
+  ed25519PubKeyToSubstrateAddress,
+  getNetworkCode,
+  POLKADOT_NETWORKS,
+} from "./polkadot";
+
+export type {
+  PolkadotNetwork,
+  SigningPayloadResult,
+  BuildPayloadParams,
+  AssetTransferParams,
+  NativeTransferParams,
+  SubmitExtrinsicParams,
+  SubmitExtrinsicResult,
+} from "./polkadot";

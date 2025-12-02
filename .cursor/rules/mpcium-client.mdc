@@ -1,0 +1,103 @@
+---
+alwaysApply: true
+---
+
+### 1. Project Context
+
+- **Domain**: TypeScript client for Mpcium MPC service, talking to NATS/JetStream and MPC nodes.
+- **Primary entrypoints**: `src/client.ts` (`MpciumClient`), `src/index.ts` (public exports), `src/types.ts` (wire types & enums), `src/utils.ts` (crypto, key handling).
+- **Usage pattern**: Library consumers connect to NATS, construct `MpciumClient`, then call `createWallet`, `signTransaction`, `reshareKeys`, and subscribe to result events.
+- **MPCIUM Core**: Stored in ../mpcium
+
+---
+
+### 2. General Engineering Rules
+
+- **Clean, small units**: Keep functions focused; avoid mixing concerns (e.g. do not couple NATS plumbing, crypto logic, and filesystem IO in a single new function).
+- **No speculative abstractions**: Only introduce new helpers when there’s clear duplication.
+- **No TODOs or commented-out code**: Either implement or remove.
+- **Error handling**:
+  - Never ignore errors; either throw with a clear message or log and rethrow/exit clearly in examples.
+  - Error messages must be actionable and precise (e.g. include wallet ID / tx ID / path when relevant).
+- **Logging**:
+  - Library code: use `console.*` sparingly and only for connection / flow visibility that’s already established in this project’s style.
+  - Example scripts in `examples/`: verbose `console.log` is fine for clarity.
+
+---
+
+### 3. TypeScript & API Contracts
+
+- **Compiler settings**: Code must compile under `tsconfig.json` (strictNullChecks, noImplicitAny).
+- **Types & enums**:
+  - Treat `src/types.ts` as API contract with the Go/mpcium side. **Do not rename** fields (`wallet_id`, `network_internal_code`, etc.) or change their types without explicit user request.
+  - If new event or message fields are needed, add them in a backwards-compatible way (optional fields at the end of interfaces where possible).
+- **Public surface**:
+  - Anything exported from `src/index.ts` is treated as public API. Preserve existing function signatures and behavior; if you must change them, prefer additive options or overloads.
+  - `MpciumClient.create`, `createWallet`, `signTransaction`, `reshareKeys`, and `on*Result` callbacks must remain stable in semantics (subject names, signing behavior, result types).
+- **Async behavior**:
+  - All IO-bound operations remain `async` and return `Promise<...>`.
+  - Never block with long `while` loops; use async callbacks, timers, or await-based flows.
+
+---
+
+### 4. NATS / JetStream / MPC Semantics
+
+- **Subject names**:
+  - Publishing: maintain current subject patterns (e.g. `mpc.keygen_request.*`, `mpc.signing_request.*`, `mpc:reshare`).
+  - Results: keep `SUBJECTS` in `client.ts` as the single source of truth for result subjects; if new subjects are introduced, add them alongside existing ones.
+- **JetStream handling**:
+  - For new publishing paths, mirror existing pattern:
+    - Try JetStream; if unavailable, **gracefully fall back** to core NATS with a clear warning.
+  - For consumers:
+    - Use durable consumers with explicit ack policy (`AckPolicy.Explicit`) and bounded `max_deliver` like existing code.
+    - Always `ack()` successful messages; `term()` on unrecoverable decode/processing errors.
+- **Message signing**:
+  - **Do not change** signing payload structure unless you know the matching Go server expectations.
+  - Reuse `signGenerateKeyMessage`, `signSignTxMessage`, `signResharingMessage` rather than duplicating signing logic; new signed messages should follow the same pattern (build canonical object → JSON serialize → sign via Ed25519).
+- **Key handling**:
+  - `loadPrivateKey` and `loadEncryptedPrivateKey` are the canonical entrypoints; new code must go through them or clearly justify new key-loading paths.
+  - Preserve current conventions: private key hex in plain file, Age-encrypted key with `.age` and passphrase.
+
+---
+
+### 5. Style & Structure
+
+- **Imports**:
+  - Use ES module syntax; group standard libs, third-party libs, then local modules.
+  - Keep imports minimal and sorted logically (no unused imports).
+- **Naming**:
+  - CamelCase for variables/functions (`createWallet`, `signTransaction`).
+  - PascalCase for types/enums/interfaces (`MpciumClient`, `KeyType`, `SigningResultEvent`).
+- **Comments**:
+  - Only when explaining **why** something is done in a non-obvious way (e.g. “signs only wallet_id to match Go implementation”).
+  - Do not add long narrative comments or redundant docstrings for trivial helpers.
+- **Examples**:
+  - When editing or adding files under `examples/`, keep them:
+    - Explicit and verbose for users (clear logs, argument validation).
+    - Resilient: validate CLI args, handle missing `wallets.json`, log network and signing failures cleanly.
+    - In line with existing examples’ structure (connect NATS → set up client → do RPC → wait for callback/events → cleanup).
+
+---
+
+### 6. Testing / Validation Expectations
+
+- **Build & types**:
+  - Ensure `npm run build` (bunchee) and `tsc` type-check pass after changes.
+- **Runtime checks** (manual, via examples):
+  - Solana/Ethereum examples should still run with a correctly configured environment:
+    - Do not break example flows (`generate`, `sign-*`, `reshare-*`).
+    - If you adjust example behavior, keep CLI usage and output behavior intuitive and documented in `README.md` if it materially changes.
+
+---
+
+### 7. Cursor-Specific Instructions for AI
+
+- **Tools**:
+  - Prefer absolute paths when reading/writing files in this repo (as per user preference).
+  - Do not introduce new build systems or major dependencies without explicit instruction.
+- **Edits**:
+  - Keep changes **small and focused** per logical task (even if multiple edits occur in one session).
+  - Before large refactors, first align behavior with existing patterns (e.g., mirror how `onSignResult` is implemented if adding a new `on*Result`).
+- **Non-goals**:
+  - Do not convert this project to another language, framework, or messaging backbone.
+  - Do not change the wire protocol (payload shapes, field names, encoding) unless the user explicitly asks and understands the server-side implications.
