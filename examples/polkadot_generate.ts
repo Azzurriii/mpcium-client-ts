@@ -1,7 +1,10 @@
 import { connect } from "nats";
-import { KeygenResultEvent, MpciumClient } from "../src";
-import { computeAddress, hexlify } from "ethers";
-import base58 from "bs58";
+import {
+  KeygenResultEvent,
+  MpciumClient,
+  ed25519PubKeyToSubstrateAddress,
+  POLKADOT_NETWORKS,
+} from "../src";
 import * as fs from "fs";
 import * as path from "path";
 import { v4 } from "uuid";
@@ -10,6 +13,20 @@ async function main() {
   const args = process.argv.slice(2);
   const nIndex = args.indexOf("-n");
   const walletCount = nIndex !== -1 ? parseInt(args[nIndex + 1]) || 1 : 1;
+
+  // Optional: specify network (defaults to Paseo testnet)
+  const networkIndex = args.indexOf("--network");
+  const network = networkIndex !== -1 ? args[networkIndex + 1] : "paseo";
+
+  if (!POLKADOT_NETWORKS[network]) {
+    console.error(`Unknown network: ${network}`);
+    console.error(
+      `Available networks: ${Object.keys(POLKADOT_NETWORKS).join(", ")}`
+    );
+    process.exit(1);
+  }
+
+  console.log(`Generating wallets for ${POLKADOT_NETWORKS[network].name}`);
 
   const nc = await connect({ servers: "nats://localhost:4222" }).catch(
     (err) => {
@@ -22,7 +39,6 @@ async function main() {
   const mpcClient = await MpciumClient.create({
     nc: nc,
     keyPath: "./event_initiator.key",
-    // password: "your-password-here",
   });
 
   const walletsPath = path.resolve("./wallets.json");
@@ -31,7 +47,7 @@ async function main() {
     try {
       wallets = JSON.parse(fs.readFileSync(walletsPath, "utf8"));
     } catch (error) {
-      console.warn(`Could not read wallets file: ${error.message}`);
+      console.warn(`Could not read wallets file: ${error}`);
     }
   }
 
@@ -40,24 +56,22 @@ async function main() {
   mpcClient.onWalletCreationResult((event: KeygenResultEvent) => {
     const timestamp = new Date().toISOString();
     console.log(`${timestamp} Received wallet creation result:`, event);
-    if(event.result_type === 'error') {
+
+    if (event.result_type === "error") {
       console.log(`Wallet creation failed: ${event.error_reason}`);
-      return
-    }
-    if (event.eddsa_pub_key) {
-      const pubKeyBytes = Buffer.from(event.eddsa_pub_key, "base64");
-      const solanaAddress = base58.encode(pubKeyBytes);
-      console.log(`Solana wallet address: ${solanaAddress}`);
+      return;
     }
 
-    if (event.ecdsa_pub_key) {
-      const pubKeyBytes = Buffer.from(event.ecdsa_pub_key, "base64");
-      const uncompressedKey =
-        pubKeyBytes.length === 65
-          ? pubKeyBytes
-          : Buffer.concat([Buffer.from([0x04]), pubKeyBytes]);
-      const ethAddress = computeAddress(hexlify(uncompressedKey));
-      console.log(`Ethereum wallet address: ${ethAddress}`);
+    if (event.eddsa_pub_key) {
+      const polkadotAddress = ed25519PubKeyToSubstrateAddress(
+        event.eddsa_pub_key,
+        POLKADOT_NETWORKS[network].ss58Prefix
+      );
+      console.log(
+        `Polkadot wallet address (${POLKADOT_NETWORKS[network].name}): ${polkadotAddress}`
+      );
+    } else {
+      console.warn(`Wallet ${event.wallet_id} has no EdDSA public key`);
     }
 
     wallets[event.wallet_id] = event;

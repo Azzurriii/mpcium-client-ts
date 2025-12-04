@@ -21,9 +21,10 @@ if (!walletId) {
 }
 
 // Configuration
-const NETWORK = "westend"; // Use Westend testnet
-const DESTINATION_ADDRESS = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"; // Alice on Westend
-const AMOUNT = BigInt(100_000_000_000); // 0.1 WND (10^12 planck = 1 WND)
+const NETWORK = "paseo"; // Use Paseo testnet
+const DESTINATION_ADDRESS = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"; // Alice on Paseo
+const AMOUNT = BigInt(1_000_000_000); // 0.1 PAS (10^12 planck = 1 PAS)
+const KEEP_ALIVE = false; // Set to true to prevent account deletion (requires keeping existential deposit)
 
 function loadWallet(walletId: string) {
   const walletsPath = path.resolve("./wallets.json");
@@ -75,7 +76,7 @@ async function main() {
       destinationAddress: DESTINATION_ADDRESS,
       amount: AMOUNT,
       network: NETWORK,
-      keepAlive: true,
+      keepAlive: KEEP_ALIVE,
     });
 
     console.log(`Payload hex: ${payloadResult.payloadHex}`);
@@ -110,7 +111,7 @@ async function main() {
             console.log(`  Block: ${result.blockHash}`);
           }
           console.log(
-            `\nView on Subscan: https://westend.subscan.io/extrinsic/${result.txHash}`
+            `\nView on Subscan: https://paseo.subscan.io/extrinsic/${result.txHash}`
           );
         } catch (err) {
           console.error("Failed to submit extrinsic:", err);
@@ -156,4 +157,3 @@ async function main() {
 }
 
 main().catch(console.error);
-

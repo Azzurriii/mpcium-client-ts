@@ -30,6 +30,12 @@ export const POLKADOT_NETWORKS: Record<string, PolkadotNetwork> = {
     ss58Prefix: 42,
     networkCode: "polkadot:westend",
   },
+  paseo: {
+    name: "Paseo",
+    rpcUrl: "wss://paseo.rpc.amforc.com",
+    ss58Prefix: 42,
+    networkCode: "polkadot:paseo",
+  },
   rococo: {
     name: "Rococo",
     rpcUrl: "wss://rococo-rpc.polkadot.io",
@@ -54,6 +60,12 @@ export const POLKADOT_NETWORKS: Record<string, PolkadotNetwork> = {
     rpcUrl: "wss://westend-asset-hub-rpc.polkadot.io",
     ss58Prefix: 42,
     networkCode: "polkadot:asset-hub-westend",
+  },
+  "asset-hub-paseo": {
+    name: "Asset Hub (Paseo)",
+    rpcUrl: "wss://sys.ibp.network/asset-hub-paseo",
+    ss58Prefix: 42,
+    networkCode: "polkadot:asset-hub-paseo",
   },
 };
 
@@ -288,4 +300,3 @@ export function getNetworkCode(network: string | PolkadotNetwork): string {
   }
   return network.networkCode;
 }
-

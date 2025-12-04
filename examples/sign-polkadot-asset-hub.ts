@@ -21,7 +21,9 @@ if (!walletId || !assetIdArg) {
   console.error(
     "Usage: npx ts-node examples/sign-polkadot-asset-hub.ts <wallet_id> <asset_id>"
   );
-  console.error("Example: npx ts-node examples/sign-polkadot-asset-hub.ts my-wallet 1984");
+  console.error(
+    "Example: npx ts-node examples/sign-polkadot-asset-hub.ts my-wallet 1984"
+  );
   process.exit(1);
 }
 
@@ -32,7 +34,7 @@ if (isNaN(ASSET_ID)) {
 }
 
 // Configuration
-const NETWORK = "asset-hub-westend"; // Use Asset Hub Westend testnet
+const NETWORK = "asset-hub-paseo"; // Use Asset Hub Paseo testnet
 const DESTINATION_ADDRESS = "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY"; // Alice
 const AMOUNT = BigInt(1_000_000); // Amount in asset's smallest unit
 
@@ -122,7 +124,7 @@ async function main() {
             console.log(`  Block: ${result.blockHash}`);
           }
           console.log(
-            `\nView on Subscan: https://assethub-westend.subscan.io/extrinsic/${result.txHash}`
+            `\nView on Subscan: https://assethub-paseo.subscan.io/extrinsic/${result.txHash}`
           );
         } catch (err) {
           console.error("Failed to submit extrinsic:", err);
@@ -168,4 +170,3 @@ async function main() {
 }
 
 main().catch(console.error);
-
