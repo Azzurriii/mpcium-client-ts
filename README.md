@@ -209,6 +209,160 @@ async function signSolanaTransaction(walletId) {
 
 [Full example: sign-solana.ts](./examples/sign-solana.ts)
 
+### Signing a Polkadot Transaction (Native Token Transfer)
+
+```ts
+import { connect } from "nats";
+import {
+  MpciumClient,
+  KeyType,
+  buildNativeTransferPayload,
+  submitSignedExtrinsic,
+  ed25519PubKeyToSubstrateAddress,
+  getNetworkCode,
+  POLKADOT_NETWORKS,
+} from "@fystack/mpcium-ts";
+import { SigningResultType } from "@fystack/mpcium-ts";
+import { u8aToHex } from "@polkadot/util";
+import fs from "fs";
+
+async function signPolkadotTransaction(walletId: string) {
+  const nc = await connect({ servers: "nats://localhost:4222" });
+  const mpcClient = await MpciumClient.create({
+    nc: nc,
+    keyPath: "./event_initiator.key",
+  });
+
+  // Load wallet from wallets.json
+  const wallets = JSON.parse(fs.readFileSync("./wallets.json", "utf8"));
+  const wallet = wallets[walletId];
+
+  if (!wallet?.eddsa_pub_key) {
+    throw new Error(`Wallet ${walletId} not found or missing EdDSA key`);
+  }
+
+  // Convert EdDSA public key to Substrate address
+  const senderAddress = ed25519PubKeyToSubstrateAddress(
+    wallet.eddsa_pub_key,
+    POLKADOT_NETWORKS.westend.ss58Prefix // Use Westend testnet
+  );
+
+  // Build signing payload for native token transfer
+  const payloadResult = await buildNativeTransferPayload({
+    mpcAddress: senderAddress,
+    destinationAddress: "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+    amount: BigInt(100_000_000_000), // 0.1 WND
+    network: "westend",
+    keepAlive: true,
+  });
+
+  // Listen for signing results
+  mpcClient.onSignResult(async (event) => {
+    if (event.result_type === SigningResultType.Success) {
+      const sigBytes = Buffer.from(event.signature, "base64");
+      const signatureHex = u8aToHex(sigBytes);
+
+      // Submit signed extrinsic
+      const result = await submitSignedExtrinsic({
+        api: payloadResult.api,
+        extrinsic: payloadResult.extrinsic,
+        signatureHex: signatureHex,
+        mpcAddress: senderAddress,
+      });
+
+      console.log(`Transaction submitted: ${result.txHash}`);
+    }
+  });
+
+  // Send signing request
+  await mpcClient.signTransaction({
+    walletId: walletId,
+    keyType: KeyType.Ed25519,
+    networkInternalCode: getNetworkCode("westend"),
+    tx: Buffer.from(payloadResult.payloadBytes).toString("base64"),
+  });
+}
+```
+
+[Full example: sign-polkadot.ts](./examples/sign-polkadot.ts)
+
+### Signing an Asset Hub Transaction (Asset Transfer)
+
+```ts
+import { connect } from "nats";
+import {
+  MpciumClient,
+  KeyType,
+  buildAssetTransferPayload,
+  submitSignedExtrinsic,
+  ed25519PubKeyToSubstrateAddress,
+  getNetworkCode,
+  POLKADOT_NETWORKS,
+} from "@fystack/mpcium-ts";
+import { SigningResultType } from "@fystack/mpcium-ts";
+import { u8aToHex } from "@polkadot/util";
+import fs from "fs";
+
+async function signAssetHubTransaction(walletId: string, assetId: number) {
+  const nc = await connect({ servers: "nats://localhost:4222" });
+  const mpcClient = await MpciumClient.create({
+    nc: nc,
+    keyPath: "./event_initiator.key",
+  });
+
+  // Load wallet from wallets.json
+  const wallets = JSON.parse(fs.readFileSync("./wallets.json", "utf8"));
+  const wallet = wallets[walletId];
+
+  if (!wallet?.eddsa_pub_key) {
+    throw new Error(`Wallet ${walletId} not found or missing EdDSA key`);
+  }
+
+  // Convert EdDSA public key to Substrate address
+  const senderAddress = ed25519PubKeyToSubstrateAddress(
+    wallet.eddsa_pub_key,
+    POLKADOT_NETWORKS["asset-hub-westend"].ss58Prefix
+  );
+
+  // Build signing payload for asset transfer
+  const payloadResult = await buildAssetTransferPayload({
+    mpcAddress: senderAddress,
+    assetId: assetId,
+    destinationAddress: "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+    amount: BigInt(1_000_000),
+    network: "asset-hub-westend",
+  });
+
+  // Listen for signing results
+  mpcClient.onSignResult(async (event) => {
+    if (event.result_type === SigningResultType.Success) {
+      const sigBytes = Buffer.from(event.signature, "base64");
+      const signatureHex = u8aToHex(sigBytes);
+
+      // Submit signed extrinsic
+      const result = await submitSignedExtrinsic({
+        api: payloadResult.api,
+        extrinsic: payloadResult.extrinsic,
+        signatureHex: signatureHex,
+        mpcAddress: senderAddress,
+      });
+
+      console.log(`Transaction submitted: ${result.txHash}`);
+    }
+  });
+
+  // Send signing request
+  await mpcClient.signTransaction({
+    walletId: walletId,
+    keyType: KeyType.Ed25519,
+    networkInternalCode: getNetworkCode("asset-hub-westend"),
+    tx: Buffer.from(payloadResult.payloadBytes).toString("base64"),
+  });
+}
+```
+
+[Full example: sign-polkadot-asset-hub.ts](./examples/sign-polkadot-asset-hub.ts)
+
 ### Resharing MPC Keys
 
 Resharing allows you to change the threshold and/or participants in an MPC wallet without exposing the private key. This is useful for:
@@ -313,4 +467,16 @@ npx ts-node ./examples/sign-solana.ts a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
 
 ```
 npx ts-node ./examples/sign-eth.ts a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
+```
+
+### 5. Sign a Polkadot transaction (Native Token Transfer)
+
+```
+npx ts-node ./examples/sign-polkadot.ts a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c
+```
+
+### 6. Sign an Asset Hub transaction (Asset Transfer)
+
+```
+npx ts-node ./examples/sign-polkadot-asset-hub.ts a99900b2-0ef8-4d7e-8c3f-2ef85abbae4c 1984
 ```

@@ -199,7 +199,7 @@ export async function buildSigningPayload(
     extrinsic: {
       unsigned: extrinsic,
       signerPayload,
-      nonce: nonce.toNumber(),
+      nonce: Number(nonce.toString()),
       era,
       tip: params.tip ?? BigInt(0),
     },
